@@ -30,7 +30,7 @@ def match(file_path: str, save_path: str, datas: dict):
 
 def main():
     # DeepSeek API配置信息
-    DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")  # 请替换为实际的API Key
+    DEEPSEEK_API_KEY = ""  # 请替换为实际的API Key
     DEEPSEEK_BASE_URL = "https://api.deepseek.com"
     
     # 模板路径配置
@@ -46,7 +46,7 @@ def main():
 
     # 创建DeepSeek客户端
     deepseek_client = DeepSeekClient(
-        api_key=DEEPSEEK_API_KEY,
+        api_key=os.getenv("DEEPSEEK_API_KEY"),
         base_url=DEEPSEEK_BASE_URL
     )
     

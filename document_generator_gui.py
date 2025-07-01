@@ -143,6 +143,12 @@ class DocumentGeneratorGUI:
         # 加载并显示初始预览图片
         self.update_preview_image()
 
+        # 图片素材库选择
+        image_frame = ttk.Frame(content_frame)
+        image_frame.pack(fill=tk.X, pady=5)
+        image_library_btn = ttk.Button(image_frame, text="图片素材库", command=self.open_image_library)
+        image_library_btn.pack(fill=tk.X)
+        
         # Excel文件上传
         excel_frame = ttk.LabelFrame(content_frame, text="Excel数据导入", padding="5")
         excel_frame.pack(fill=tk.X, pady=5)
@@ -171,12 +177,6 @@ class DocumentGeneratorGUI:
         self.excel_status_var = tk.StringVar(value="未导入Excel数据")
         excel_status_label = ttk.Label(excel_frame, textvariable=self.excel_status_var, foreground="gray")
         excel_status_label.pack(fill=tk.X, pady=2)
-
-        # 图片素材库选择
-        image_frame = ttk.Frame(content_frame)
-        image_frame.pack(fill=tk.X, pady=5)
-        image_library_btn = ttk.Button(image_frame, text="图片素材库", command=self.open_image_library)
-        image_library_btn.pack(fill=tk.X)
         
         # 提示词模板库
         prompt_frame = ttk.LabelFrame(content_frame, text="提示词模板库", padding="5")
@@ -379,6 +379,7 @@ class DocumentGeneratorGUI:
             # 恢复默认提示词
             default_templates = {
                 "焊接工艺规程": ["请参照现有知识，生成焊接工艺规程。"]
+                # "作业指导书": ["请参照现有电气布线知识，生成CRRC-1型车的电气布线作业指导。"]
             }
             self.prompt_templates = default_templates
             self.prompt_combo['values'] = self.prompt_templates[self.current_template]
@@ -689,8 +690,9 @@ class DocumentGeneratorGUI:
                     selected_image_info  # 传递图片素材库选择的图片信息
                 )
 
-                # Show success message and ask for continuation
-                self.root.after(0, lambda: self.show_generation_success_and_ask_continue(save_path))
+                # Show success message
+                self.root.after(0,
+                                lambda: messagebox.showinfo("Success", f"Document generated successfully: {save_path}"))
 
             except Exception as e:
                 import traceback
@@ -708,89 +710,6 @@ class DocumentGeneratorGUI:
         self.reset_button.configure(state=state)
         self.send_button.configure(state=state)
         self.generate_button.configure(state=state)
-    
-    def show_generation_success_and_ask_continue(self, save_path: str):
-        """
-        显示生成成功消息并询问是否继续生成下一个文档
-        
-        Args:
-            save_path: 已生成文档的保存路径
-        """
-        # 显示成功消息
-        success_msg = f"文档生成成功：{save_path}\n\n是否继续生成下一个文档？"
-        
-        # 检查是否还有下一行数据
-        if not self.excel_data or not self.excel_parser.has_next_row():
-            # 没有更多数据
-            messagebox.showinfo("生成完成", f"文档生成成功：{save_path}\n\n已处理完所有Excel数据，没有更多行可以处理。")
-            return
-        
-        # 询问用户是否继续
-        result = messagebox.askyesno("生成成功", success_msg)
-        
-        if result:  # 用户选择继续
-            self.continue_next_document_generation()
-        else:
-            messagebox.showinfo("完成", "文档生成已完成。")
-    
-    def continue_next_document_generation(self):
-        """
-        继续生成下一个文档
-        """
-        try:
-            # 1. 重置图片素材选择
-            self.reset_image_materials()
-            
-            # 2. 重置大模型session
-            self.reset_llm_session()
-            
-            # 3. 解析下一行Excel数据
-            next_data = self.excel_parser.extract_next_row_data()
-            
-            if next_data:
-                self.excel_data = next_data
-                current_row = self.excel_parser.get_current_row_index() + 1
-                total_rows = self.excel_parser.get_total_rows()
-                
-                # 更新状态显示
-                self.excel_status_var.set(f"已解析Excel数据 (第{current_row}行/共{total_rows}行)")
-                
-                # 在输出区域显示新的数据信息
-                self.output_text.insert(tk.END, f"\n=== 开始处理第{current_row}行数据 ===\n")
-                self.output_text.insert(tk.END, f"WPS编号: {next_data.get('WPS', 'N/A')}\n")
-                self.output_text.insert(tk.END, f"接头类型: {next_data.get('接头类型', 'N/A')}\n")
-                self.output_text.insert(tk.END, "请选择图片素材并使用提示词进行对话生成。\n\n")
-                self.output_text.see(tk.END)
-                
-                messagebox.showinfo("准备就绪", f"已加载第{current_row}行数据，请选择图片素材并开始新的对话。")
-            else:
-                messagebox.showinfo("完成", "没有更多Excel数据可以处理。")
-                
-        except Exception as e:
-            messagebox.showerror("错误", f"处理下一行数据时发生错误: {str(e)}")
-    
-    def reset_image_materials(self):
-        """
-        重置图片素材选择
-        """
-        self.selected_images = {}
-        self.image_path = ""
-        self.output_text.insert(tk.END, "已重置图片素材选择。\n")
-    
-    def reset_llm_session(self):
-        """
-        重置大模型session
-        """
-        try:
-            # 调用聊天助手的重置方法
-            if hasattr(self.chat_assistant, 'reset_conversation'):
-                self.chat_assistant.reset_conversation()
-            elif hasattr(self.chat_assistant, 'reset'):
-                self.chat_assistant.reset()
-            
-            self.output_text.insert(tk.END, "已重置大模型会话。\n")
-        except Exception as e:
-            self.output_text.insert(tk.END, f"重置大模型会话时出错: {str(e)}\n")
     
     def select_excel_file(self):
         """选择Excel文件"""
@@ -812,9 +731,8 @@ class DocumentGeneratorGUI:
             # 解析Excel文件
             self.excel_data = self.excel_parser.parse_file(self.excel_file_path)
             if self.excel_data:
-                total_rows = self.excel_parser.get_total_rows()
-                self.excel_status_var.set(f"已成功解析Excel数据 (第1行/共{total_rows}行)")
-                messagebox.showinfo("成功", f"Excel文件解析成功！共找到{total_rows}行数据。")
+                self.excel_status_var.set(f"已成功解析Excel数据 ({len(self.excel_data)}个字段)")
+                messagebox.showinfo("成功", "Excel文件解析成功！")
             else:
                 self.excel_status_var.set("Excel解析失败")
                 messagebox.showerror("错误", "Excel文件解析失败，请检查文件格式")
