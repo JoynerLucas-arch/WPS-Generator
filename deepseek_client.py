@@ -247,7 +247,7 @@ t2: [t2厚度]"
         
         try:
             response = self.client.chat.completions.create(
-                model="deepseek-chat",
+                model="deepseek-reasoner",
                 messages=messages,
                 stream=stream,
                 temperature=0.2,
@@ -255,18 +255,52 @@ t2: [t2厚度]"
             )
             
             if stream:
-                # 处理流式响应
-                full_response = ""
-                for chunk in response:
-                    if chunk.choices[0].delta.content is not None:
-                        content = chunk.choices[0].delta.content
-                        full_response += content
-                        print(content, end="", flush=True)
-                print()  # 换行
+                # 处理流式响应 - 支持deepseek-reasoner的思维链
+                reasoning_content = ""
+                content = ""
+                reasoning_started = False  # 标记是否已开始显示思维链
+                answer_started = False     # 标记是否已开始显示最终回答
                 
-                # 保存到对话历史
+                for chunk in response:
+                    # 处理思维链内容
+                    if chunk.choices[0].delta.reasoning_content:
+                        reasoning_part = chunk.choices[0].delta.reasoning_content
+                        reasoning_content += reasoning_part
+                        
+                        # 只在第一次显示思维链标识
+                        if not reasoning_started:
+                            print("\n[思维过程]\n", end="", flush=True)
+                            reasoning_started = True
+                        
+                        # 显示思维链内容
+                        print(reasoning_part, end="", flush=True)
+                        
+                    # 处理最终回答内容
+                    elif chunk.choices[0].delta.content is not None:
+                        content_part = chunk.choices[0].delta.content
+                        content += content_part
+                        
+                        # 只在第一次显示最终回答标识
+                        if not answer_started:
+                            # 如果有思维链，先换行分隔
+                            if reasoning_content:
+                                print("\n\n[最终回答]\n", end="", flush=True)
+                            answer_started = True
+                        
+                        # 显示最终回答内容
+                        print(content_part, end="", flush=True)
+                print()  # 最后换行
+                
+                # 组合完整响应（思维链 + 最终回答）
+                full_response = ""
+                if reasoning_content:
+                    full_response += f"[思维过程]\n{reasoning_content}\n\n"
+                if content:
+                    full_response += f"[最终回答]\n{content}"
+                
+                # 保存到对话历史（只保存最终回答部分）
                 self.conversation_history.append({"role": "user", "content": message})
-                self.conversation_history.append({"role": "assistant", "content": full_response})
+                self.conversation_history.append({"role": "assistant", "content": content})
                 
                 return full_response
             else:
