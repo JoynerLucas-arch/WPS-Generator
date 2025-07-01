@@ -11,6 +11,7 @@ class ExcelParser:
     def __init__(self):
         self.data = None
         self.parsed_dict = None
+        self.current_row_index = 0  # 添加当前行索引
     
     def clean_column_names(self, df: pd.DataFrame) -> pd.DataFrame:
         """清理列名中的空格和回车"""
@@ -84,27 +85,30 @@ class ExcelParser:
             print(f"加载Excel文件时发生错误: {str(e)}")
             return False
     
-    def extract_first_row_data(self) -> Optional[Dict[str, Any]]:
+    def extract_row_data(self, row_index: int = 0) -> Optional[Dict[str, Any]]:
         """
-        提取第一行数据并转换为字典
+        提取指定行数据并转换为字典
         
+        Args:
+            row_index: 要提取的行索引（默认为0，即第一行）
+            
         Returns:
-            Dict: 包含第一行数据的字典，如果没有数据则返回None
+            Dict: 包含指定行数据的字典，如果没有数据则返回None
         """
-        if self.data is None or len(self.data) == 0:
+        if self.data is None or len(self.data) <= row_index:
             return None
         
-        # 定义需要提取的列名（注意：列名已经过清理，去除了所有空白字符）
+        # 定义需要提取的列名
         target_columns = [
             'WPS', '焊接工艺', '接头类型', '焊接位置', 'WPQR', 
             '厚度t1/材质', '厚度t2/材质', '接头坡口形式', '焊接填充材料','保护气体类型'
         ]
         
-        # 提取第一行数据并存储到字典中
+        # 提取指定行数据并存储到字典中
         row_dict = {}
         for col in target_columns:
             if col in self.data.columns:
-                value = self.data.iloc[0][col]
+                value = self.data.iloc[row_index][col]
                 # 处理NaN值
                 if pd.isna(value):
                     row_dict[col] = None
@@ -114,7 +118,58 @@ class ExcelParser:
                 row_dict[col] = None
         
         self.parsed_dict = row_dict
+        self.current_row_index = row_index
         return row_dict
+    
+    def extract_first_row_data(self) -> Optional[Dict[str, Any]]:
+        """
+        提取第一行数据并转换为字典
+        
+        Returns:
+            Dict: 包含第一行数据的字典，如果没有数据则返回None
+        """
+        return self.extract_row_data(0)
+    
+    def extract_next_row_data(self) -> Optional[Dict[str, Any]]:
+        """
+        提取下一行数据并转换为字典
+        
+        Returns:
+            Dict: 包含下一行数据的字典，如果没有更多数据则返回None
+        """
+        next_index = self.current_row_index + 1
+        return self.extract_row_data(next_index)
+    
+    def has_next_row(self) -> bool:
+        """
+        检查是否还有下一行数据
+        
+        Returns:
+            bool: 如果还有下一行数据返回True，否则返回False
+        """
+        if self.data is None:
+            return False
+        return (self.current_row_index + 1) < len(self.data)
+    
+    def get_total_rows(self) -> int:
+        """
+        获取总行数
+        
+        Returns:
+            int: 总行数
+        """
+        if self.data is None:
+            return 0
+        return len(self.data)
+    
+    def get_current_row_index(self) -> int:
+        """
+        获取当前行索引
+        
+        Returns:
+            int: 当前行索引
+        """
+        return self.current_row_index
     
     def get_all_data(self) -> Optional[pd.DataFrame]:
         """获取完整的DataFrame数据"""
